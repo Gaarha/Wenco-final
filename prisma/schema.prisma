@@ -1,0 +1,58 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Team {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  users       User[]
+  hallazgos   Hallazgo[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(USER)
+  team         Team?      @relation(fields: [teamId], references: [id])
+  teamId       String?
+  hallazgos    Hallazgo[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Hallazgo {
+  id                 String         @id @default(cuid())
+  title              String
+  description        String?
+  location           String
+  date               DateTime       @default(now())
+  status             HallazgoStatus @default(ENCONTRADO)
+  googleDriveFileIds String         @default("[]")
+  team               Team           @relation(fields: [teamId], references: [id])
+  teamId             String
+  reportedBy         User           @relation(fields: [reportedById], references: [id])
+  reportedById       String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum HallazgoStatus {
+  ENCONTRADO
+  RECLAMADO
+  DEVUELTO
+}
