@@ -1,5 +1,10 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Módulos
+
+- **Hallazgos**: plataforma de objetos perdidos y encontrados.
+- **Inventario de Productos** (`/productos`): gestión de productos tecnológicos con categorías, control de stock, alertas de stock bajo/agotado, valor total de inventario e historial de movimientos (entradas, salidas y ajustes). La administración de categorías está en `/admin/categorias`.
+
 ## Getting Started
 
 First, run the development server:

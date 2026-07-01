@@ -26,6 +26,7 @@ model User {
   team         Team?      @relation(fields: [teamId], references: [id])
   teamId       String?
   hallazgos    Hallazgo[]
+  stockMovements StockMovement[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -46,6 +47,45 @@ model Hallazgo {
   updatedAt          DateTime       @updatedAt
 }
 
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id          String          @id @default(cuid())
+  name        String
+  sku         String          @unique
+  description String?
+  brand       String?
+  model       String?
+  price       Float           @default(0)
+  quantity    Int             @default(0)
+  minStock    Int             @default(5)
+  location    String?
+  status      ProductStatus   @default(ACTIVO)
+  category    Category        @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  movements   StockMovement[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model StockMovement {
+  id        String       @id @default(cuid())
+  type      MovementType
+  quantity  Int
+  note      String?
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  user      User         @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime     @default(now())
+}
+
 enum Role {
   USER
   ADMIN
@@ -55,4 +95,15 @@ enum HallazgoStatus {
   ENCONTRADO
   RECLAMADO
   DEVUELTO
+}
+
+enum ProductStatus {
+  ACTIVO
+  DESCONTINUADO
+}
+
+enum MovementType {
+  ENTRADA
+  SALIDA
+  AJUSTE
 }

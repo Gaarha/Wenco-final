@@ -18,7 +18,7 @@ async function main() {
     create: { name: 'Equipo Administración', description: 'Área administrativa' },
   })
 
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: 'admin@wenco.com' },
     update: {},
     create: {
@@ -42,7 +42,49 @@ async function main() {
     },
   })
 
-  console.log('Seed completado: 2 equipos, 2 usuarios creados')
+  const categoryData = [
+    { name: 'Laptops' },
+    { name: 'Monitores' },
+    { name: 'Periféricos' },
+    { name: 'Redes' },
+    { name: 'Componentes' },
+  ]
+  const categories = new Map<string, string>()
+  for (const c of categoryData) {
+    const category = await prisma.category.upsert({ where: { name: c.name }, update: {}, create: c })
+    categories.set(c.name, category.id)
+  }
+
+  const productData = [
+    { name: 'Laptop Dell Latitude 5440', sku: 'LAP-DELL-5440', brand: 'Dell', model: 'Latitude 5440', price: 1150, quantity: 8, minStock: 3, category: 'Laptops', location: 'Bodega 1 - Estante A1' },
+    { name: 'Monitor LG 27" 4K', sku: 'MON-LG-27UK', brand: 'LG', model: '27UK850', price: 380, quantity: 2, minStock: 4, category: 'Monitores', location: 'Bodega 1 - Estante B2' },
+    { name: 'Teclado mecánico Logitech MX', sku: 'TEC-LOG-MXK', brand: 'Logitech', model: 'MX Keys', price: 95, quantity: 15, minStock: 5, category: 'Periféricos', location: 'Bodega 2 - Estante C1' },
+    { name: 'Switch de red 24 puertos', sku: 'RED-TPL-24P', brand: 'TP-Link', model: 'TL-SG1024', price: 210, quantity: 0, minStock: 2, category: 'Redes', location: 'Bodega 2 - Estante D3' },
+    { name: 'Memoria RAM DDR4 16GB', sku: 'COM-KIN-16GB', brand: 'Kingston', model: 'Fury Beast', price: 45, quantity: 30, minStock: 10, category: 'Componentes', location: 'Bodega 1 - Estante A4' },
+  ]
+
+  for (const p of productData) {
+    const { category, ...data } = p
+    const product = await prisma.product.upsert({
+      where: { sku: p.sku },
+      update: {},
+      create: { ...data, categoryId: categories.get(category)! },
+    })
+    const existingMovements = await prisma.stockMovement.count({ where: { productId: product.id } })
+    if (existingMovements === 0 && product.quantity > 0) {
+      await prisma.stockMovement.create({
+        data: {
+          type: 'ENTRADA',
+          quantity: product.quantity,
+          note: 'Stock inicial',
+          productId: product.id,
+          userId: adminUser.id,
+        },
+      })
+    }
+  }
+
+  console.log('Seed completado: 2 equipos, 2 usuarios, 5 categorías, 5 productos creados')
   console.log('Admin:   admin@wenco.com / Admin1234!')
   console.log('Usuario: usuario@wenco.com / Usuario1234!')
 }
