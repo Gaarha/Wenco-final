@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IA Local — Chat privado en tu dispositivo</title>
+<meta name="description" content="Chatea con una IA que se ejecuta directamente en tu navegador. Cuanto más potente es tu dispositivo, más potente es la IA." />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #f9fafb; color: #111827;
+    min-height: 100vh; padding: 2rem 1rem;
+  }
+  .contenedor { max-width: 48rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+  header { text-align: center; margin-bottom: .5rem; }
+  .insignia {
+    display: inline-flex; align-items: center; gap: .4rem;
+    border: 1px solid #6ee7b7; background: #ecfdf5; color: #047857;
+    border-radius: 999px; padding: .25rem .75rem; font-size: .75rem; font-weight: 500;
+  }
+  .punto { width: 6px; height: 6px; border-radius: 999px; background: #10b981; }
+  h1 { margin-top: .75rem; font-size: 2rem; letter-spacing: -.02em; }
+  header p.sub { margin: .5rem auto 0; max-width: 34rem; font-size: .875rem; color: #6b7280; }
+  .tarjeta {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: .75rem;
+    padding: 1rem; box-shadow: 0 1px 2px rgb(0 0 0 / .05);
+  }
+  .fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+  .tarjeta h2 { font-size: .875rem; }
+  .nivel {
+    border-radius: 999px; border: 1px solid; padding: .1rem .6rem;
+    font-size: .72rem; font-weight: 500;
+  }
+  .nivel.basico { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+  .nivel.medio  { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+  .nivel.alto   { background: #f5f3ff; color: #6d28d9; border-color: #c4b5fd; }
+  .nivel.ultra  { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+  dl.specs {
+    margin-top: .75rem; display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: .25rem 1rem; font-size: .75rem; color: #4b5563;
+  }
+  @media (min-width: 640px) { dl.specs { grid-template-columns: repeat(4, 1fr); } }
+  dl.specs dt { font-weight: 500; color: #9ca3af; }
+  .aviso {
+    border: 1px solid #fcd34d; background: #fffbeb; color: #92400e;
+    border-radius: .75rem; padding: 1rem; font-size: .875rem;
+  }
+  .aviso code { background: #fef3c7; border-radius: .25rem; padding: 0 .25rem; }
+  .modelos { margin-top: .75rem; display: grid; gap: .5rem; }
+  @media (min-width: 640px) { .modelos { grid-template-columns: 1fr 1fr; } }
+  .modelo {
+    text-align: left; border: 1px solid #e5e7eb; background: #fff;
+    border-radius: .6rem; padding: .75rem; cursor: pointer; font: inherit;
+    transition: border-color .15s;
+  }
+  .modelo:hover { border-color: #d1d5db; }
+  .modelo.sel { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 1px #2563eb; }
+  .modelo .nombre { font-size: .875rem; font-weight: 500; }
+  .modelo .desc { margin-top: .25rem; font-size: .75rem; color: #6b7280; }
+  .modelo .meta { margin-top: .25rem; font-size: .65rem; color: #9ca3af; }
+  .modelo .reco { color: #2563eb; font-weight: 600; }
+  .boton {
+    margin-top: 1rem; display: inline-flex; align-items: center; justify-content: center;
+    height: 2.25rem; padding: 0 1rem; border: 0; border-radius: .4rem;
+    background: #2563eb; color: #fff; font-size: .875rem; font-weight: 500;
+    cursor: pointer; box-shadow: 0 1px 2px rgb(0 0 0 / .1);
+  }
+  .boton:hover { background: #1d4ed8; }
+  .boton:disabled { opacity: .5; cursor: default; }
+  .progreso-pista { margin-top: 1rem; height: .5rem; border-radius: 999px; background: #f3f4f6; overflow: hidden; }
+  .progreso-barra { height: 100%; width: 0; border-radius: 999px; background: #2563eb; transition: width .3s; }
+  .progreso-texto { margin-top: .5rem; font-size: .75rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .progreso-nota { margin-top: .25rem; font-size: .65rem; color: #9ca3af; }
+  .error {
+    border: 1px solid #fca5a5; background: #fef2f2; color: #b91c1c;
+    border-radius: .5rem; padding: .75rem; font-size: .875rem;
+  }
+  .chat { display: none; flex-direction: column; padding: 0; overflow: hidden; }
+  .chat-cabecera {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: .5rem; border-bottom: 1px solid #f3f4f6; padding: .5rem 1rem;
+    font-size: .75rem; color: #4b5563;
+  }
+  .chat-cabecera .estado-modelo { display: flex; align-items: center; gap: .5rem; }
+  .chat-cabecera .gris { color: #9ca3af; }
+  .enlace { border: 0; background: none; color: #2563eb; font-size: .75rem; font-weight: 500; cursor: pointer; }
+  .enlace:hover { text-decoration: underline; }
+  .mensajes {
+    display: flex; flex-direction: column; gap: .75rem;
+    min-height: 16rem; max-height: 55vh; overflow-y: auto; padding: 1rem;
+  }
+  .vacio { margin: auto; text-align: center; font-size: .875rem; color: #9ca3af; }
+  .msg { max-width: 85%; white-space: pre-wrap; border-radius: 1rem; padding: .5rem 1rem; font-size: .875rem; line-height: 1.45; }
+  .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: .25rem; }
+  .msg.assistant { align-self: flex-start; background: #f3f4f6; color: #111827; border-bottom-left-radius: .25rem; }
+  form.entrada { display: flex; align-items: flex-end; gap: .5rem; border-top: 1px solid #f3f4f6; padding: .75rem; }
+  form.entrada textarea {
+    flex: 1; resize: none; max-height: 8rem; border: 1px solid #d1d5db; border-radius: .4rem;
+    padding: .5rem .75rem; font: inherit; font-size: .875rem;
+  }
+  form.entrada textarea:focus { outline: none; border-color: #3b82f6; }
+  form.entrada .boton { margin-top: 0; }
+  footer { margin-top: 1.5rem; text-align: center; font-size: .75rem; color: #9ca3af; }
+  .oculto { display: none !important; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <header>
+    <span class="insignia"><span class="punto"></span> 100% local · tus conversaciones nunca salen de tu dispositivo</span>
+    <h1>IA Local</h1>
+    <p class="sub">
+      Una inteligencia artificial que se ejecuta directamente en tu navegador, sin servidores.
+      Detectamos la potencia de tu dispositivo y cargamos el modelo más capaz que puede mover:
+      cuanto mejor sea tu equipo, más inteligente será la IA.
+    </p>
+  </header>
+
+  <section class="tarjeta">
+    <div class="fila">
+      <h2>Tu dispositivo</h2>
+      <span id="estado-deteccion" style="font-size:.75rem;color:#6b7280">Analizando hardware…</span>
+      <span id="nivel-dispositivo" class="nivel oculto"></span>
+    </div>
+    <dl class="specs oculto" id="specs">
+      <div><dt>Tipo</dt><dd id="spec-tipo"></dd></div>
+      <div><dt>Núcleos CPU</dt><dd id="spec-nucleos"></dd></div>
+      <div><dt>Memoria RAM</dt><dd id="spec-ram"></dd></div>
+      <div><dt>GPU (WebGPU)</dt><dd id="spec-gpu"></dd></div>
+    </dl>
+  </section>
+
+  <section id="sin-webgpu" class="aviso oculto">
+    <p style="font-weight:600">Tu navegador no soporta WebGPU</p>
+    <p style="margin-top:.25rem">
+      La IA local necesita WebGPU para ejecutarse en tu dispositivo. Prueba con una versión reciente de
+      Chrome, Edge o Safari. En Firefox puedes activarlo en <code>about:config</code> con
+      <code>dom.webgpu.enabled</code>.
+    </p>
+  </section>
+
+  <section id="panel-modelos" class="tarjeta oculto">
+    <h2>Modelo de IA</h2>
+    <p id="texto-recomendacion" style="margin-top:.25rem;font-size:.75rem;color:#6b7280"></p>
+    <div class="modelos" id="lista-modelos"></div>
+    <div id="zona-carga">
+      <button class="boton" id="btn-cargar">Cargar modelo</button>
+    </div>
+    <div id="zona-progreso" class="oculto">
+      <div class="progreso-pista"><div class="progreso-barra" id="barra"></div></div>
+      <p class="progreso-texto" id="texto-progreso"></p>
+      <p class="progreso-nota">La primera vez se descarga el modelo y queda guardado en la caché del navegador.</p>
+    </div>
+  </section>
+
+  <p id="error" class="error oculto"></p>
+
+  <section id="chat" class="tarjeta chat">
+    <div class="chat-cabecera">
+      <div class="estado-modelo">
+        <span class="punto"></span>
+        <span id="chat-modelo" style="font-weight:500"></span>
+        <span class="gris">· ejecutándose en tu dispositivo</span>
+        <span class="gris oculto" id="chat-vel"></span>
+      </div>
+      <button class="enlace" id="btn-cambiar">Cambiar modelo</button>
+    </div>
+    <div class="mensajes" id="mensajes">
+      <p class="vacio" id="vacio">Escribe tu primer mensaje. Todo se procesa aquí, en tu dispositivo:<br />nada se envía a ningún servidor.</p>
+    </div>
+    <form class="entrada" id="form">
+      <textarea id="entrada" rows="1" placeholder="Escribe un mensaje…"></textarea>
+      <button class="boton" type="submit" id="btn-enviar" disabled>Enviar</button>
+    </form>
+  </section>
+
+  <footer>
+    Funciona con WebGPU y modelos de código abierto (Qwen y Llama) mediante WebLLM.<br />
+    El modelo se descarga una sola vez y queda guardado en la caché de tu navegador.
+  </footer>
+</div>
+
+<script type="module">
+const MODELOS = [
+  { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', nombre: 'Qwen 2.5 · 0.5B', nivel: 'basico', parametros: '0.5B', vramMB: 945,  descripcion: 'Ultraligero, funciona hasta en móviles modestos.' },
+  { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', nombre: 'Qwen 2.5 · 1.5B', nivel: 'medio',  parametros: '1.5B', vramMB: 1630, descripcion: 'Buen equilibrio para móviles de gama alta y portátiles.' },
+  { id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', nombre: 'Llama 3.2 · 3B',  nivel: 'alto',   parametros: '3B',   vramMB: 2264, descripcion: 'Respuestas más elaboradas, para equipos con buena GPU.' },
+  { id: 'Llama-3.1-8B-Instruct-q4f16_1-MLC', nombre: 'Llama 3.1 · 8B',  nivel: 'ultra',  parametros: '8B',   vramMB: 5001, descripcion: 'El más potente, requiere GPU dedicada y bastante memoria.' },
+];
+const ETIQUETA = { basico: 'Básico', medio: 'Medio', alto: 'Alto', ultra: 'Ultra' };
+const SYSTEM_PROMPT = 'Eres un asistente de IA útil y amable que se ejecuta localmente en el dispositivo del usuario. Responde siempre en el idioma en que te escriban, de forma clara y concisa.';
+
+const $ = (id) => document.getElementById(id);
+let engine = null, modeloSel = null, generando = false;
+let mensajes = [];
+
+async function detectar() {
+  const esMovil = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const nucleos = navigator.hardwareConcurrency ?? 2;
+  const memoriaGB = navigator.deviceMemory ?? null;
+  let webgpu = false, gpuNombre = null, maxBufferMB = null;
+  if (navigator.gpu) {
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) {
+        webgpu = true;
+        maxBufferMB = Math.round(adapter.limits.maxBufferSize / 1048576);
+        const info = adapter.info;
+        if (info) gpuNombre = [info.vendor, info.architecture || info.description].filter(Boolean).join(' ') || null;
+      }
+    } catch { webgpu = false; }
+  }
+  let puntaje = 0;
+  if (webgpu) puntaje += 25;
+  puntaje += memoriaGB !== null ? Math.min(memoriaGB, 8) * 4 : 12;
+  puntaje += Math.min(nucleos, 16) * 2;
+  if (maxBufferMB !== null && maxBufferMB >= 2048) puntaje += 11;
+  if (esMovil) puntaje = Math.round(puntaje * 0.55);
+
+  let nivel;
+  if (!webgpu) nivel = 'basico';
+  else if (puntaje >= 75) nivel = 'ultra';
+  else if (puntaje >= 55) nivel = 'alto';
+  else if (puntaje >= 35) nivel = 'medio';
+  else nivel = 'basico';
+
+  if (webgpu && maxBufferMB !== null) {
+    const m = MODELOS.find((x) => x.nivel === nivel);
+    if (m && m.vramMB > maxBufferMB * 4) {
+      const viable = [...MODELOS].reverse().find((x) => x.vramMB <= maxBufferMB * 4);
+      nivel = viable ? viable.nivel : 'basico';
+    }
+  }
+  return { webgpu, gpuNombre, memoriaGB, nucleos, esMovil, nivel };
+}
+
+function pintarModelos(recomendadoId) {
+  const cont = $('lista-modelos');
+  cont.innerHTML = '';
+  for (const m of MODELOS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'modelo' + (modeloSel?.id === m.id ? ' sel' : '');
+    b.innerHTML = `
+      <div class="fila"><span class="nombre">${m.nombre}</span><span class="nivel ${m.nivel}">${ETIQUETA[m.nivel]}</span></div>
+      <p class="desc">${m.descripcion}</p>
+      <p class="meta">${m.parametros} parámetros · ~${(m.vramMB / 1024).toFixed(1)} GB de memoria${m.id === recomendadoId ? ' <span class="reco">· Recomendado</span>' : ''}</p>`;
+    b.addEventListener('click', () => { modeloSel = m; pintarModelos(recomendadoId); $('btn-cargar').textContent = 'Cargar ' + m.nombre; });
+    cont.appendChild(b);
+  }
+}
+
+function mostrarError(msg) {
+  const e = $('error');
+  e.textContent = msg;
+  e.classList.toggle('oculto', !msg);
+}
+
+function pintarMensajes() {
+  const cont = $('mensajes');
+  cont.querySelectorAll('.msg').forEach((n) => n.remove());
+  $('vacio').classList.toggle('oculto', mensajes.length > 0);
+  for (const m of mensajes) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + m.rol;
+    d.textContent = m.texto || (generando && m === mensajes[mensajes.length - 1] ? 'Pensando…' : '');
+    cont.appendChild(d);
+  }
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function cargarModelo() {
+  if (!modeloSel) return;
+  mostrarError('');
+  $('zona-carga').classList.add('oculto');
+  $('zona-progreso').classList.remove('oculto');
+  try {
+    const webllm = await import('https://esm.run/@mlc-ai/web-llm@0.2.84');
+    if (engine) { await engine.unload(); engine = null; }
+    engine = await webllm.CreateMLCEngine(modeloSel.id, {
+      initProgressCallback: (p) => {
+        $('barra').style.width = Math.round(p.progress * 100) + '%';
+        $('texto-progreso').textContent = p.text;
+      },
+    });
+    mensajes = [];
+    pintarMensajes();
+    $('panel-modelos').classList.add('oculto');
+    $('chat').style.display = 'flex';
+    $('chat-modelo').textContent = modeloSel.nombre;
+    $('btn-enviar').disabled = false;
+  } catch (e) {
+    mostrarError(e?.message || 'No se pudo cargar el modelo.');
+  } finally {
+    $('zona-carga').classList.remove('oculto');
+    $('zona-progreso').classList.add('oculto');
+  }
+}
+
+async function enviar() {
+  const texto = $('entrada').value.trim();
+  if (!texto || !engine || generando) return;
+  $('entrada').value = '';
+  const historial = [...mensajes, { rol: 'user', texto }];
+  mensajes = [...historial, { rol: 'assistant', texto: '' }];
+  generando = true;
+  $('btn-enviar').disabled = true;
+  $('btn-enviar').textContent = 'Generando…';
+  mostrarError('');
+  pintarMensajes();
+  try {
+    const inicio = performance.now();
+    let generado = 0, respuesta = '';
+    const stream = await engine.chat.completions.create({
+      stream: true,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...historial.map((m) => ({ role: m.rol, content: m.texto })),
+      ],
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content ?? '';
+      if (delta) {
+        respuesta += delta;
+        generado++;
+        mensajes = [...historial, { rol: 'assistant', texto: respuesta }];
+        pintarMensajes();
+      }
+    }
+    const seg = (performance.now() - inicio) / 1000;
+    if (seg > 0 && generado > 0) {
+      $('chat-vel').textContent = '· ' + Math.round(generado / seg) + ' tok/s';
+      $('chat-vel').classList.remove('oculto');
+    }
+  } catch (e) {
+    mostrarError(e?.message || 'Error al generar la respuesta.');
+  } finally {
+    generando = false;
+    $('btn-enviar').disabled = false;
+    $('btn-enviar').textContent = 'Enviar';
+    pintarMensajes();
+  }
+}
+
+$('form').addEventListener('submit', (e) => { e.preventDefault(); enviar(); });
+$('entrada').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
+});
+$('btn-cargar').addEventListener('click', cargarModelo);
+$('btn-cambiar').addEventListener('click', () => {
+  $('chat').style.display = 'none';
+  $('panel-modelos').classList.remove('oculto');
+});
+
+const info = await detectar();
+$('estado-deteccion').classList.add('oculto');
+const chip = $('nivel-dispositivo');
+chip.textContent = 'Potencia: ' + ETIQUETA[info.nivel];
+chip.className = 'nivel ' + info.nivel;
+$('specs').classList.remove('oculto');
+$('spec-tipo').textContent = info.esMovil ? 'Móvil / tablet' : 'Ordenador';
+$('spec-nucleos').textContent = info.nucleos;
+$('spec-ram').textContent = info.memoriaGB !== null ? '≈ ' + info.memoriaGB + ' GB' : 'No disponible';
+$('spec-gpu').textContent = info.webgpu ? (info.gpuNombre || 'Compatible') : 'No compatible';
+
+if (!info.webgpu) {
+  $('sin-webgpu').classList.remove('oculto');
+} else {
+  modeloSel = MODELOS.find((m) => m.nivel === info.nivel) || MODELOS[0];
+  $('texto-recomendacion').innerHTML =
+    'Según tu hardware te recomendamos <b>' + modeloSel.nombre + '</b>. Cuanto más potente sea tu dispositivo, más grande es el modelo que puede ejecutar.';
+  $('panel-modelos').classList.remove('oculto');
+  pintarModelos(modeloSel.id);
+  $('btn-cargar').textContent = 'Cargar ' + modeloSel.nombre;
+}
+</script>
+</body>
+</html>
